@@ -1,7 +1,7 @@
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Module:       main.cpp                                                  */
-/*    Author:       C:\Users\akad                                             */
+/*    Author:       Akilan Babu                                               */
 /*    Created:      Tue Nov 16 2021                                           */
 /*    Description:  V5 project                                                */
 /*                                                                            */
@@ -18,14 +18,17 @@
 
 #include "vex.h"
 
+#include <iostream>
+#include <string>
+
 using namespace vex;
 
 //this is a (decimal) value b/w 0 and 1. lower the value to lower max motor power (and make drive train slower)
-float dampening = 0.65;
+float drivetrain_dampening = 0.65;
 //0.05
 
 //this is a percentage value b/w 0 and 100, determines percent maximum of arm power
-float armMax = 0.35;
+float arm_dampening = 0.35;
 //0.01
 
 
@@ -34,21 +37,40 @@ float armMax = 0.35;
 
 //NOTE: you may have to switch the ports of the motors in robot configuration
 //void increaseDriveTrainMultiplier() {
-//  dampening = dampening + dampeningInterval;
+//  drivetrain_dampening = drivetrain_dampening + dampeningInterval;
 //}
 
 //void decreaseDriveTrainMultiplier() {
-  //dampening = dampening - dampeningInterval;
+  //drivetrain_dampening = drivetrain_dampening - dampeningInterval;
 //}
 
 //void increaseArmMotorMultiplier() {
-  //armMax = armMax + armInterval;
+  //arm_dampening = arm_dampening + armInterval;
 //}
 
 //void decreaseArmMotorMultiplier() {
-  //armMax = armMax - armInterval;
+  //arm_dampening = arm_dampening - armInterval;
 //}
 
+
+/* void displayInfo: displays a piece of information on the brain screen.
+
+  NOTE: must be run inside of a while true loop
+
+  %param name% the display name of the information (ex: Left Motor Position)
+  %param info% the actual value of the information (ex: left_motor.position(degrees))
+  %param Row% row number of starting position of display area (ex: 1)
+  %param Col% column number of starting position of display area (ex: 1) 
+
+*/
+void displayInfo(const char* name, float info, int Row, int Col) {
+  Brain.Screen.setCursor(Row, Col); 
+  Brain.Screen.setPenColor(cyan);
+  Brain.Screen.print(name);
+  Brain.Screen.print(" ");
+  Brain.Screen.setPenColor(white);
+  Brain.Screen.print(info);
+}
 
 int main() {
   // Initializing Robot Configuration. DO NOT REMOVE!
@@ -61,19 +83,31 @@ int main() {
   //button A/B = increase/decrease arm multiplier 
   //Controller1.ButtonA.pressed(increaseArmMotorMultiplier);
   //Controller1.ButtonB.pressed(decreaseArmMotorMultiplier);
+  Brain.Screen.print("Motor Positions (in degrees)");
+  Brain.Screen.setCursor(5, 1);
+  Brain.Screen.print("Other Information");
   while (true) {
-    left_motor.spin(forward, Controller1.Axis3.position() * dampening, percent);
-    right_motor.spin(forward, Controller1.Axis2.position() * dampening, percent);
+    left_motor.spin(forward, Controller1.Axis3.position() * drivetrain_dampening, percent);
+    right_motor.spin(forward, Controller1.Axis2.position() * drivetrain_dampening, percent);
+
+    //display useful information
+    displayInfo("Left Drivetrain Motor", left_motor.position(degrees), 2, 3);
+    displayInfo("Right Drivetrain Motor", right_motor.position(degrees), 3, 3);
+    displayInfo("Arm Motors", arm_motors.position(degrees), 4, 3); //doesnt work properly unless BOTH motors are connected
+    displayInfo("Drivetrain Dampening Multiplier", drivetrain_dampening, 6, 3);
+    displayInfo("Arm Dampening Multiplier", drivetrain_dampening, 7, 3);
+    
+
     //NOTE: if any direction needs to be reversed, do so in the robot configuration (reverse the motor)
 
     //if L1 is pressed, spin the arm motors forward
-    if (Controller1.ButtonL1.pressing()) {
-      arm_motors.spin(forward, armMax * 100, percent);
+    if (Controller1.ButtonL1.pressing()) {  
+      arm_motors.spin(forward, arm_dampening * 100, percent);
     }
 
     //if L2 is pressed, spin the arm motors the other way
     else if (Controller1.ButtonL2.pressing()) {
-      arm_motors.spin(reverse, armMax * 100, percent);
+      arm_motors.spin(reverse, arm_dampening * 100, percent);
     }
 
     else {

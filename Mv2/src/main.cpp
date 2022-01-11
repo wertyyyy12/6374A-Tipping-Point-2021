@@ -7,7 +7,7 @@
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
-//CHANGE THE PORT DISPLAY ON BRAIN AFTER
+//CHANGE THE PORT DISPLAY ON BRAIN AFTER CHANGING ANY PORTS
 // ---- START VEXCODE CONFIGURED DEVICES ----
 // Robot Configuration:
 // [Name]               [Type]        [Port(s)]
@@ -53,10 +53,7 @@ void displayInfoBrain(float info, int Row, int Col, color Color, const char* nam
   Brain.Screen.print(name);
   Brain.Screen.print(" ");
   Brain.Screen.setPenColor(white);
-  if (info != 0) {
-    Brain.Screen.print(info);
-  }
-
+  Brain.Screen.print(info);
 }
 
 //almost the same function as above, for the controller
@@ -65,9 +62,7 @@ void displayInfoController(float info, int Row, int Col, const char* name = "") 
   Controller1.Screen.setCursor(Row, Col); 
   Controller1.Screen.print(name);
   Controller1.Screen.print(" ");
-  if (info != 0) {
-    Controller1.Screen.print(info);
-  }
+  Controller1.Screen.print(info);
 
 }
 
@@ -93,44 +88,30 @@ int main() {
     left_motor.spin(forward, Controller1.Axis3.position() * drivetrain_dampening, percent); //spin drivetrain
     right_motor.spin(forward, Controller1.Axis2.position() * drivetrain_dampening, percent);
 
+        
+    int back_forward = back_arm_dampening * 100 * Controller1.ButtonR1.pressing(); //R1 -> back arm forward
+    int back_reverse = back_arm_dampening * 100 * Controller1.ButtonR2.pressing(); //R2 -> back arm reverse
+
+    int front_forward = front_arm_dampening * 100 * Controller1.ButtonL1.pressing(); //L1 -> front arm forward
+    int front_reverse = front_arm_dampening * 100 * Controller1.ButtonL2.pressing(); //L2 -> front arm reverse
+
+    back_arm_motors.spin(forward,  back_forward - back_reverse, percent); //spin back arm
+    front_arm_motors.spin(forward,  front_forward - front_reverse, percent); //spin front arm
+
     //display useful information
       //to brain
     displayInfoBrain(left_motor.position(degrees), 2, 3, cyan, "(Port 1) Left Drivetrain Motor");
     displayInfoBrain(left_motor.velocity(percent), 2, 37, blue, "Vel");
     displayInfoBrain(right_motor.position(degrees), 3, 3, cyan, "(Port 2) Right Drivetrain Motor");
     displayInfoBrain(right_motor.velocity(percent), 3, 37, blue, "Vel");
-    displayInfoBrain(front_arm_motors.position(degrees), 4, 3, cyan, "(Ports 3, 4) Front Arm Motors"); //doesnt work properly unless BOTH motors are connected
+    displayInfoBrain(front_arm_motors.position(degrees), 4, 3, cyan, "(Ports 3L, 4R) Front Arm Motors"); //doesnt work properly unless BOTH motors are connected
     displayInfoBrain(front_arm_motors.velocity(percent), 4, 37, blue, "Vel");
-    displayInfoBrain(back_arm_motors.position(degrees), 5, 3, cyan, "(Ports 5, 6) Back Arm Motors"); //doesnt work properly unless BOTH motors are connected
+    displayInfoBrain(back_arm_motors.position(degrees), 5, 3, cyan, "(Ports 5L, 6R) Back Arm Motors"); //doesnt work properly unless BOTH motors are connected
     displayInfoBrain(back_arm_motors.velocity(percent), 5, 37, blue, "Vel");
       //to controller
     displayInfoController(drivetrain_dampening, 1, 1, "Drivetrain");
     displayInfoController(front_arm_dampening, 2, 1, "Front Arm");
     displayInfoController(back_arm_dampening, 3, 1, "Back Arm");
-    
-    //L1 button -> front arm motors forward
-    if (Controller1.ButtonL1.pressing()) {  
-      front_arm_motors.spin(forward, front_arm_dampening * 100, percent);
-    }
-
-    //L2 button -> front arm motors reverse 
-    else if (Controller1.ButtonL2.pressing()) {
-      front_arm_motors.spin(reverse, front_arm_dampening * 100, percent);
-    }
-
-    //button R1 -> back arm forward
-    else if (Controller1.ButtonR1.pressing()) {
-      back_arm_motors.spin(forward, back_arm_dampening * 100, percent);
-    }
-
-    //button R2 -> back arm reverse
-    else if (Controller1.ButtonR2.pressing()) {
-      back_arm_motors.spin(reverse, back_arm_dampening * 100, percent);
-    }
-
-    else {
-      front_arm_motors.stop();
-    }
 
     wait(20, msec);
   }

@@ -72,6 +72,13 @@ int main() {
   front_arm_motors.setStopping(hold); //ensures that the arms stay up in place instead of dropping 
   back_arm_motors.setStopping(hold);
 
+
+  //display port info ONCE
+  displayInfoBrain(left_motor.position(degrees), 2, 3, cyan, "(Port 1) Left Drivetrain Motor");
+  displayInfoBrain(right_motor.position(degrees), 3, 3, cyan, "(Port 2) Right Drivetrain Motor");
+  displayInfoBrain(front_arm_motors.position(degrees), 4, 3, cyan, "(Ports 3L, 4R) Front Arm Motors");
+  displayInfoBrain(back_arm_motors.position(degrees), 5, 3, cyan, "(Ports 5L, 6R) Back Arm Motors");
+  
   //enables multiplier adjustment
   //   //up, down buttons -> increase, decrease drivetrain dampening multiplier   
   Controller1.ButtonUp.pressed([]() {drivetrain_dampening = drivetrain_dampening + dampening_interval; displayInfoController(drivetrain_dampening, 1, 1, "Drivetrain");});
@@ -97,7 +104,6 @@ int main() {
 
     back_arm_motors.spin(forward,  back_forward - back_reverse, percent); //spin back arm
     front_arm_motors.spin(forward,  front_forward - front_reverse, percent); //spin front arm
-
 
     wait(20, msec);
   }

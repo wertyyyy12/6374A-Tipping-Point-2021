@@ -73,20 +73,20 @@ int main() {
   back_arm_motors.setStopping(hold);
 
   //enables multiplier adjustment
-    //up, down buttons -> increase, decrease drivetrain dampening multiplier   
-  Controller1.ButtonUp.pressed([]() {drivetrain_dampening = drivetrain_dampening + dampening_interval;});
-  Controller1.ButtonDown.pressed([]() {drivetrain_dampening = drivetrain_dampening - dampening_interval;});
+  //   //up, down buttons -> increase, decrease drivetrain dampening multiplier   
+  Controller1.ButtonUp.pressed([]() {drivetrain_dampening = drivetrain_dampening + dampening_interval; displayInfoController(drivetrain_dampening, 1, 1, "Drivetrain");});
+  Controller1.ButtonDown.pressed([]() {drivetrain_dampening = drivetrain_dampening - dampening_interval; displayInfoController(drivetrain_dampening, 1, 1, "Drivetrain");});
     //left, right buttons -> decrease, increase front arm dampening multiplier
-  Controller1.ButtonLeft.pressed([]() {front_arm_dampening = front_arm_dampening - dampening_interval;});
-  Controller1.ButtonRight.pressed([]() {front_arm_dampening = front_arm_dampening + dampening_interval;});
+  Controller1.ButtonLeft.pressed([]() {front_arm_dampening = front_arm_dampening - dampening_interval; displayInfoController(front_arm_dampening, 2, 1, "Front Arm");});
+  Controller1.ButtonRight.pressed([]() {front_arm_dampening = front_arm_dampening + dampening_interval; displayInfoController(front_arm_dampening, 2, 1, "Front Arm");});
     //B, X buttons -> decrease, increase back arm dampening multiplier
-  Controller1.ButtonB.pressed([]() {back_arm_dampening = back_arm_dampening - dampening_interval;});
-  Controller1.ButtonX.pressed([]() {back_arm_dampening = back_arm_dampening + dampening_interval;});
-
+  Controller1.ButtonB.pressed([]() {back_arm_dampening = back_arm_dampening - dampening_interval; displayInfoController(back_arm_dampening, 3, 1, "Back Arm");});
+  Controller1.ButtonX.pressed([]() {back_arm_dampening = back_arm_dampening + dampening_interval; displayInfoController(back_arm_dampening, 3, 1, "Back Arm");});
+    
   // Brain.Screen.print("Motor Positions (in degrees)");
   while (true) {
-    left_motor.spin(forward, Controller1.Axis3.position() * drivetrain_dampening, percent); //spin drivetrain
-    right_motor.spin(forward, Controller1.Axis2.position() * drivetrain_dampening, percent);
+    // left_motor.spin(forward, Controller1.Axis3.position() * drivetrain_dampening, percent); //spin drivetrain
+    // right_motor.spin(forward, Controller1.Axis2.position() * drivetrain_dampening, percent);
 
         
     int back_forward = back_arm_dampening * 100 * Controller1.ButtonR1.pressing(); //R1 -> back arm forward
@@ -98,20 +98,6 @@ int main() {
     back_arm_motors.spin(forward,  back_forward - back_reverse, percent); //spin back arm
     front_arm_motors.spin(forward,  front_forward - front_reverse, percent); //spin front arm
 
-    //display useful information
-      //to brain
-    displayInfoBrain(left_motor.position(degrees), 2, 3, cyan, "(Port 1) Left Drivetrain Motor");
-    displayInfoBrain(left_motor.velocity(percent), 2, 37, blue, "Vel");
-    displayInfoBrain(right_motor.position(degrees), 3, 3, cyan, "(Port 2) Right Drivetrain Motor");
-    displayInfoBrain(right_motor.velocity(percent), 3, 37, blue, "Vel");
-    displayInfoBrain(front_arm_motors.position(degrees), 4, 3, cyan, "(Ports 3L, 4R) Front Arm Motors"); //doesnt work properly unless BOTH motors are connected
-    displayInfoBrain(front_arm_motors.velocity(percent), 4, 37, blue, "Vel");
-    displayInfoBrain(back_arm_motors.position(degrees), 5, 3, cyan, "(Ports 5L, 6R) Back Arm Motors"); //doesnt work properly unless BOTH motors are connected
-    displayInfoBrain(back_arm_motors.velocity(percent), 5, 37, blue, "Vel");
-      //to controller
-    displayInfoController(drivetrain_dampening, 1, 1, "Drivetrain");
-    displayInfoController(front_arm_dampening, 2, 1, "Front Arm");
-    displayInfoController(back_arm_dampening, 3, 1, "Back Arm");
 
     wait(20, msec);
   }

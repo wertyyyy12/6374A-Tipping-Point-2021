@@ -25,8 +25,15 @@ competition Competition;
 
 // define your global instances of motors and other devices here
 float dampening = 0.65;
-float armMax = 0.35;
-int goalLengthInDegrees = 1630;
+double wheelRadius;
+double armMaxInDegrees = 150;
+float goalLength; //IN INCHES
+
+//other constants
+double pi = 2 * acos(0.0);
+char up[3]= "up";
+char down[5]= "down";
+
 /*---------------------------------------------------------------------------*/
 /*                          Pre-Autonomous Functions                         */
 /*                                                                           */
@@ -46,19 +53,44 @@ void pre_auton(void) {
   // All activities that occur before the competition starts
   // Example: clearing encoders, setting servo positions, ...
 }
-void driveTrainMotors(int leftPosition, int rightPosition, bool reset) {
-  left_motor.spinToPosition(leftPosition, degrees, false);
-  right_motor.spinToPosition(rightPosition, degrees, false);
-  while ((left_motor.position(degrees) < (leftPosition - 5)) && (right_motor.position(degrees) < (leftPosition - 5))) {
+
+/* void driveTrainMotors: move one or both of drive train motors a certain amount
+
+  %param leftPosition% target position of left motor, in either degrees or length units
+  %param rightPosition% target position of right motor, in either degrees or length units
+  %param reset% (optional; default = false) BOOL: if true, resets both drivetrain motors to original position 
+  %param unitsAreDegrees% (optional; default = false) BOOL: true if units are degrees, false if units are length
+    NOTE: the length units must match the units for wheelRadius
+
+*/
+void driveTrainMotors(double leftPosition, double rightPosition, bool reset = false, bool unitsAreDegrees = false) { //positions must be measured with same units as radius measure!!!
+  double leftPositioninDegrees = (leftPosition * 180) / (pi * wheelRadius);  //by default, positions are not in degrees and thus have to be converted
+  double rightPositioninDegrees = (rightPosition * 180) / (pi * wheelRadius); 
+  if (unitsAreDegrees) {
+    leftPositioninDegrees = leftPosition;
+    rightPositioninDegrees = rightPosition;
+  }
+
+  left_motor.spinToPosition(leftPositioninDegrees, degrees, false);
+  right_motor.spinToPosition(rightPositioninDegrees, degrees, false);
+  while ((left_motor.position(degrees) < (leftPositioninDegrees - 5)) && (right_motor.position(degrees) < (rightPositioninDegrees - 5))) { //while the motors are not almost there, wait
     wait(10, msec);
   }
-  if (reset) {
+  if (reset) { //if reset = true, wait a bit then return to original position (stored as 0)
     wait(250, msec);
     left_motor.spinToPosition(0, degrees, false);
     right_motor.spinToPosition(0, degrees, false);
   }
 }
 
+void moveArms(char action[]) {
+  if (strncmp(action, "up", 2) == 0) {
+    arm_motors.spinFor(forward, armMaxInDegrees, degrees);
+  }
+  if (strncmp(action, "down", 2) == 0) {
+    arm_motors.spinFor(forward, -armMaxInDegrees, degrees);
+  } 
+}
 /*---------------------------------------------------------------------------*/
 /*                                                                           */
 /*                              Autonomous Task                              */
@@ -71,26 +103,25 @@ void driveTrainMotors(int leftPosition, int rightPosition, bool reset) {
 
 void autonomous(void) {
   //////INITIALIZATION
-  arm_motors.setStopping(hold); //ensures that the arms stay up in place instead of dropping ;
+  arm_motors.setStopping(hold); //ensures that the arms stay up in place instead of dropping 
   //initialize velocities
   left_motor.setVelocity(dampening * 100, percent);
   right_motor.setVelocity(dampening * 100, percent);
-  int goalLengthInDegrees = 1630;
   //////END INITIALIZATION
   driveTrainMotors(50, -50, true); //tap the ring into the alliance mobile goal
 
   //move arm up and down
-  arm_motors.spinFor(forward, 150, degrees);
-  arm_motors.spinFor(forward, -150, degrees);
+  moveArms(up);
+  moveArms(down);
 
   //turn towards correct heading
-  driveTrainMotors(22.5, -22.5, false);
+  driveTrainMotors(22.5, -22.5, false, true);
 
   //move forwards to mobile goal
-  driveTrainMotors(goalLengthInDegrees, goalLengthInDegrees, false);
+  driveTrainMotors(goalLength, goalLength);
 
   //lift up the goal
-  arm_motors.spinFor(forward, 150, degrees);
+  moveArms(up);
 
   //go back to starting position
   driveTrainMotors(0, 0, false);
@@ -113,23 +144,7 @@ void autonomous(void) {
 void usercontrol(void) {
   // User control code here, inside the loop
   while (1) {
-    left_motor.spin(forward, Controller1.Axis3.position() * dampening, percent);
-    right_motor.spin(forward, Controller1.Axis2.position() * dampening, percent);
-    //NOTE: if any direction needs to be reversed, do so in the robot configuration (reverse the motor)
-
-    //if L1 is pressed, spin the arm motors forward
-    if (Controller1.ButtonL1.pressing()) {
-      arm_motors.spin(forward, armMax * 100, percent);
-    }
-
-    //if L2 is pressed, spin the arm motors the other way
-    else if (Controller1.ButtonL2.pressing()) {
-      arm_motors.spin(reverse, armMax * 100, percent);
-    }
-
-    else {
-      arm_motors.stop();
-    }
+    //DRIVER CONTROL STUFF
 
     wait(20, msec); // Sleep the task for a short amount of time to
                     // prevent wasted resources.

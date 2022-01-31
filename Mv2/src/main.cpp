@@ -36,6 +36,8 @@ float drivetrain_dampening = 0.65; //for drivetrain
 float front_arm_dampening = 0.35; //for front arm (two motors)
 float back_arm_dampening = 0.60; //for back arm (two motors)
 float dampening_interval = 0.05; //adjustment for one button press of any dampening interval
+
+float back_arm_limit = 0;
 /* void displayInfoBrain: displays a piece of information on the brain screen.
 
   NOTE: must be run inside of a while true loop
@@ -92,8 +94,8 @@ int main() {
     
   // Brain.Screen.print("Motor Positions (in degrees)");
   while (true) {
-    // left_motor.spin(forward, Controller1.Axis3.position() * drivetrain_dampening, percent); //spin drivetrain
-    // right_motor.spin(forward, Controller1.Axis2.position() * drivetrain_dampening, percent);
+    left_motor.spin(forward, Controller1.Axis3.position() * drivetrain_dampening, percent); //spin drivetrain
+    right_motor.spin(forward, Controller1.Axis2.position() * drivetrain_dampening, percent);
 
         
     int back_forward = back_arm_dampening * 100 * Controller1.ButtonR1.pressing(); //R1 -> back arm forward
@@ -105,6 +107,7 @@ int main() {
     back_arm_motors.spin(forward,  back_forward - back_reverse, percent); //spin back arm
     front_arm_motors.spin(forward,  front_forward - front_reverse, percent); //spin front arm
 
+    displayInfoBrain(back_arm_motors.position(degrees), 6, 3, cyan, "BACK ARM POS");
     wait(20, msec);
   }
 

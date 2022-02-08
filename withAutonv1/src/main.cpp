@@ -29,7 +29,7 @@ float dampening_interval = 0.05; //adjustment for one button press of any dampen
 //movement parameters
 float back_arm_limit = 0;
 float wheelRadius = 2; //in inches
-float armMaxInDegrees = 150;
+
 
 //coordinate system init
 float currentHeading = 90; //in degrees
@@ -87,7 +87,8 @@ float length(float point0[2], float point1[2]) {
 
 */
 void displayInfoBrain(float info, int Row, int Col, color Color, const char* name = "") {
-  Brain.Screen.setCursor(Row, Col); 
+  // Brain.Screen.setCursor(Row, Col); 
+  Brain.Screen.newLine();
   Brain.Screen.setPenColor(Color);
   Brain.Screen.print(name);
   Brain.Screen.print(" ");
@@ -113,6 +114,15 @@ void pre_auton(void) {
   // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
 
+  left_motor.resetPosition();
+  right_motor.resetPosition();
+  front_arm_motors.setStopping(hold); //ensures that the arms stay up in place instead of dropping 
+  back_arm_motors.setStopping(hold);
+
+  left_motor.setVelocity(drivetrain_dampening * 100, percent);
+  right_motor.setVelocity(drivetrain_dampening * 100, percent);
+  front_arm_motors.setVelocity(front_arm_dampening * 100, percent);
+  back_arm_motors.setVelocity(back_arm_dampening * 100, percent);
 }
 
 /* void driveTrainMotors: move one or both of drive train motors a certain amount
@@ -124,91 +134,103 @@ void pre_auton(void) {
     NOTE: the length units must match the units for wheelRadius
 
 */
-void driveTrainMotors(float leftPosition, float rightPosition, bool unitsAreDegrees = false) { //positions must be measured with same units as radius measure!!!
-  float leftPositioninDegrees = toDegrees(leftPosition / wheelRadius);  //by default, positions are not in degrees and thus have to be converted to inches
-  float rightPositioninDegrees = toDegrees(rightPosition / wheelRadius); 
-  if (unitsAreDegrees) {
-    leftPositioninDegrees = leftPosition;
-    rightPositioninDegrees = rightPosition;
-  }
 
-  while ((std::abs(left_motor.position(degrees) - leftPositioninDegrees) > 10) || (std::abs(right_motor.position(degrees) - rightPositioninDegrees) > 10)) {
-    // float leftVelocityPercent, rightVelocityPercent;
-    float proportionalConstant = 1;
-    float leftProportionalError = proportionalConstant * 100 * ((leftPositioninDegrees - left_motor.position(degrees)) / (leftPositioninDegrees));
-    float rightProportionalError = proportionalConstant * 100 * ((rightPositioninDegrees - right_motor.position(degrees)) / (rightPositioninDegrees));
-    
-    left_motor.spin(forward, leftProportionalError, percent);
-    right_motor.spin(forward, rightProportionalError, percent);
-
-    // displayInfoController(left_motor.position(degrees), 2, 3, "L POS");
-    // displayInfoController(right_motor.position(degrees), 3, 3, "R POS");
-    displayInfoController(std::abs(left_motor.position(degrees) - leftPositioninDegrees), 2, 3, "L DIFF");
-    displayInfoController(std::abs(right_motor.position(degrees) - rightPositioninDegrees), 3, 3, "R DIFF");
-
-
-    wait(10, msec); 
-  }
-  
-  left_motor.stop();
-  right_motor.stop();
-
-
-
-} //basically retired
-
-void Move(float Distance) { //Distance in INCHES
+void Move(float Distance, bool preciseMovement = false) { //Distance in INCHES
   // driveTrainMotors(Distance, Distance);
-  float targetPositionInDegrees = toDegrees(Distance / wheelRadius);
+  left_motor.resetPosition(); right_motor.resetPosition();
+  float targetPositionInDegrees = toDegrees(Distance / wheelRadius) - (0 * Distance / std::abs(Distance));
 
   //u(x) = pP * iI (* dD)
   //sigmoid function to turn unbounded output into %?
-  float Pconstant = 0.15;   //0.15 works well
-  float Iconstant = 0; //0.008
-  float Dconstant = 0.0;
+  float Pconstant = 0.25;   //0.15 works well
+  float Iconstant = 0.0; //0.008
+  float Dconstant = 0.095; //0.095
   float I = 0;
   float e0 = 0; //for De calculations
   
-
-  while ((std::abs(targetPositionInDegrees - averageMotorPosition()) > 10)) {
+  //asymmetrical turns to account for weird slow turning
+  if (Distance < 0) {
+    left_motor.spinFor(forward, 15, degrees, false);
+    right_motor.spinFor(forward, -15, degrees, false);
+  }
+  if (Distance > 0) {
+    left_motor.spinFor(forward, -13, degrees, false);
+    right_motor.spinFor(forward, 13, degrees, false);
+  }
+  wait(400, msec);
+  while (true) {
     // Brain.Timer.reset(); //setting up the dT for I 
+  //   right_motor.spinFor(forward, 23, degrees, false);
     float absoluteError = targetPositionInDegrees - averageMotorPosition();
     // float minPconst = 75;
     float P = Pconstant * absoluteError;
 
     if (std::abs(absoluteError) < 180) {
-      Iconstant = 0;
+      Iconstant = 0.0003;
     }
     I = I + (Iconstant * absoluteError); //integrating error fxn for integral control
 
-    float DeltaE = absoluteError - e0; //find DeltaE, change in error over given 10ms interval
+    float DeltaE = absoluteError - e0; //find DeltaE, change in error over given 20ms interval
     e0 = absoluteError;
 
     float controlValue = P + I + (DeltaE * Dconstant);
+    // if (std::abs(controlValue) < 0.25) { //avoid slowing down w/o stopping
+    //   break;
+    // }
+    float terminationRange = 5;
+    if (!preciseMovement) {
+      terminationRange = 12;
+    }
+    if ((std::abs(targetPositionInDegrees - averageMotorPosition()) < terminationRange) ) { //stop when im close enough
+      Controller1.rumble(rumbleLong);
+      break;
+    }
+    float maxAbsControl = 85;
+    if (std::abs(controlValue) > maxAbsControl) {
+      if (controlValue > 0) {
+        controlValue = maxAbsControl;
+      }
+      else {
+        controlValue = -maxAbsControl;
+      }
+    }
     left_motor.spin(forward, controlValue, percent);
     right_motor.spin(forward, controlValue, percent);
-    displayInfoController(averageMotorPosition() - targetPositionInDegrees, 1, 3, "Diff");
+    displayInfoController(targetPositionInDegrees - averageMotorPosition(), 1, 3, "Diff"); //+ = undershoot, - = overshoot, for t > initialavg
     displayInfoController(controlValue, 3, 3, "C Val");
     wait(20, msec); //IF CHANGING, ALL OTHER CONSTANTS MUST BE CHANGED PROPORTIONALLY
   }
-  left_motor.spin(forward, -50, percent);
-  right_motor.spin(forward, -50, percent);
-  wait(0.2, sec);
+  // left_motor.spin(forward, -50, percent);
+  // right_motor.spin(forward, -50, percent);
+  // wait(0.2, sec);
   left_motor.stop();
   right_motor.stop();
-  displayInfoController(696969, 2, 3, "STOPPED");
+  displayInfoController(Brain.Timer.value(), 2, 3, "STOPPED");
+  displayInfoBrain(targetPositionInDegrees, 2, 3, blue, "target position");
   Controller1.rumble(rumbleShort);
 
 
   //update coords
-  faloat Dx = Distance * cos(toRadians(currentHeading)); //good ol' polar formulae
+  float Dx = Distance * cos(toRadians(currentHeading)); //good ol' polar formulae
   float Dy = Distance * sin(toRadians(currentHeading));
   currentPosition[0] = currentPosition[0] + Dx;
   currentPosition[1] = currentPosition[1] + Dy;
 } 
 
-void Turn(float angularDisplacement) {  
-  driveTrainMotors(-angularDisplacement, angularDisplacement, true);
+void Turn(float angularDisplacement, bool lifting = false) {  
+  // driveTrainMotors(-angularDisplacement, angularDisplacement, true);
+  float turnMultiplier = 1;
+  if (angularDisplacement > 0) {
+    turnMultiplier = -1;
+  }
+
+  float inputToAngularDisplacementRatio = 3.25;
+  if (lifting) {
+    inputToAngularDisplacementRatio = 4.75;
+  }
+  left_motor.spinFor(forward, inputToAngularDisplacementRatio * angularDisplacement * turnMultiplier, degrees, false);
+  right_motor.spinFor(forward, inputToAngularDisplacementRatio * -angularDisplacement * turnMultiplier, degrees, false);
+
   currentHeading = currentHeading + angularDisplacement; //update robot heading
 }
 
@@ -234,17 +256,22 @@ void TurnToPoint(float targetPosition[2]) {
   TurnToHeading(targetHeading);
 }
 
-void MoveArms(const char arm[], const char action[]) { //maybe add 
+void MoveArms(const char arm[], const char Direction[], const char amount[] = "partial") { //maybe add 
   float reverseMultiplier = 1;
-  if (areStringsEqual(action, "down")) {
+  if (areStringsEqual(Direction, "down")) {
     reverseMultiplier = -1;
   }
 
+  float degreesLift = 150; //defaults to a partial lift
+  if (areStringsEqual(amount, "full")) {
+    degreesLift = 450;
+  }
+
   if (areStringsEqual(arm, "front")) {
-    front_arm_motors.spinFor(forward, armMaxInDegrees * reverseMultiplier, degrees);
+    front_arm_motors.spinFor(forward, degreesLift * reverseMultiplier, degrees);
   }
   if (areStringsEqual(arm, "back")) {
-    back_arm_motors.spinFor(forward, armMaxInDegrees * reverseMultiplier, degrees);
+    back_arm_motors.spinFor(forward, degreesLift * reverseMultiplier, degrees);
   }
 
 }
@@ -260,43 +287,11 @@ void MoveArms(const char arm[], const char action[]) { //maybe add
 
 void autonomous(void) {
 
-  left_motor.resetPosition();
-  right_motor.resetPosition();
-  front_arm_motors.setStopping(hold); //ensures that the arms stay up in place instead of dropping 
-  back_arm_motors.setStopping(hold);
-
-  left_motor.setVelocity(drivetrain_dampening * 100, percent);
-  right_motor.setVelocity(drivetrain_dampening * 100, percent);
-  front_arm_motors.setVelocity(front_arm_dampening * 100, percent);
-  back_arm_motors.setVelocity(back_arm_dampening * 100, percent);
-  // All activities that occur before the competition starts
-  // Example: clearing encoders, setting servo positions, ...
-  //////END INITIALIZATION
-  // Turn(-50); wait(2500, msec); Turn(50);
-
-  // //move arm up and down
-  // MoveArms("front", "up");
-  // MoveArms("front", "down");
-
-  // //turn towards correct heading
-  // Turn(-1.5);
-
-  //move forwards to mobile goal
-  // Move(goalLength);
-
-  Move(12 * 5);
-  // wait(3, sec);
-  // Move(12 * 3);
-
-
-  // //lift up the goal
-  // MoveArms("front", "up");
-
-  // //go back to starting position
-  // driveTrainMotors(0, 0, false);
-
-  // //turn around to park
-  // driveTrainMotors(180, -180, false);
+  Move(58.9 + 6);
+  MoveArms("front", "up"); //optional argument "partial" not included
+  Move(-58.9 - 6);
+  Turn(90, true);
+  
   
 }
 
@@ -343,6 +338,7 @@ void usercontrol(void) {
     front_arm_motors.spin(forward,  front_forward - front_reverse, percent); //spin front arm
 
     displayInfoBrain(back_arm_motors.position(degrees), 6, 3, cyan, "BACK ARM POS");
+    displayInfoController(front_arm_motors.torque(InLb), 2, 3, "F arm torque");
 
     wait(20, msec); // Sleep the task for a short amount of time to
                     // prevent wasted resources.

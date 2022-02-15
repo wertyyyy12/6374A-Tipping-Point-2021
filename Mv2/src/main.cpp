@@ -1,3 +1,24 @@
+// ---- START VEXCODE CONFIGURED DEVICES ----
+// Robot Configuration:
+// [Name]               [Type]        [Port(s)]
+// Controller1          controller                    
+// front_arm_motors     motor_group   3, 4            
+// left_motor           motor         1               
+// right_motor          motor         2               
+// back_arm_motors      motor_group   5, 6            
+// left_small_motor     motor         7               
+// right_small_motor    motor         8               
+// ---- END VEXCODE CONFIGURED DEVICES ----
+// ---- START VEXCODE CONFIGURED DEVICES ----
+// Robot Configuration:
+// [Name]               [Type]        [Port(s)]
+// Controller1          controller                    
+// front_arm_motors     motor_group   3, 4            
+// left_motor           motor         1               
+// right_motor          motor         2               
+// back_arm_motors      motor_group   5, 6            
+// left_small_motor     motor         7               
+// ---- END VEXCODE CONFIGURED DEVICES ----
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Module:       main.cpp                                                  */
@@ -22,6 +43,7 @@
 
 #include <iostream>
 #include <string>
+#include <cmath>
 
 using namespace vex; 
 
@@ -37,7 +59,8 @@ float front_arm_dampening = 0.35; //for front arm (two motors)
 float back_arm_dampening = 0.60; //for back arm (two motors)
 float dampening_interval = 0.05; //adjustment for one button press of any dampening interval
 
-float back_arm_limit = 0;
+float back_arm_limit = 100;
+float front_arm_limit = 235;
 /* void displayInfoBrain: displays a piece of information on the brain screen.
 
   NOTE: must be run inside of a while true loop
@@ -68,16 +91,21 @@ void displayInfoController(float info, int Row, int Col, const char* name = "") 
 
 }
 
+void resetDrivetrainMotorPositions() {
+  left_motor.resetPosition();
+  right_motor.resetPosition();
+  left_small_motor.resetPosition();
+  right_small_motor.resetPosition();
+}
+
+
 int main() {
   // Initializing Robot Configuration. DO NOT REMOVE!
-  vexcodeInit();
-  front_arm_motors.setStopping(hold); //ensures that the arms stay up in place instead of dropping 
-  back_arm_motors.setStopping(hold);
-
-
+  vexcodeInit(); resetDrivetrainMotorPositions();
+// User control code here, inside the loop
   //display port info ONCE
-  displayInfoBrain(left_motor.position(degrees), 2, 3, cyan, "(Port 1) Left Drivetrain Motor");
-  displayInfoBrain(right_motor.position(degrees), 3, 3, cyan, "(Port 2) Right Drivetrain Motor");
+  displayInfoBrain(left_motor.position(degrees), 2, 3, cyan, "(Ports 1B, 7F) Left Drivetrain Motor");
+  displayInfoBrain(right_motor.position(degrees), 3, 3, cyan, "(Ports 2B, 8F) Right Drivetrain Motor");
   displayInfoBrain(front_arm_motors.position(degrees), 4, 3, cyan, "(Ports 3L, 4R) Front Arm Motors");
   displayInfoBrain(back_arm_motors.position(degrees), 5, 3, cyan, "(Ports 5L, 6R) Back Arm Motors");
   
@@ -91,24 +119,41 @@ int main() {
     //B, X buttons -> decrease, increase back arm dampening multiplier
   Controller1.ButtonB.pressed([]() {back_arm_dampening = back_arm_dampening - dampening_interval; displayInfoController(back_arm_dampening, 3, 1, "Back Arm");});
   Controller1.ButtonX.pressed([]() {back_arm_dampening = back_arm_dampening + dampening_interval; displayInfoController(back_arm_dampening, 3, 1, "Back Arm");});
-    
-  // Brain.Screen.print("Motor Positions (in degrees)");
-  while (true) {
-    left_motor.spin(forward, Controller1.Axis3.position() * drivetrain_dampening, percent); //spin drivetrain
-    right_motor.spin(forward, Controller1.Axis2.position() * drivetrain_dampening, percent);
+  while (1) {
 
-        
+    float axis3Val = Controller1.Axis3.position() * drivetrain_dampening;
+    float axis2Val = Controller1.Axis2.position() * drivetrain_dampening;
+
+    
+    left_motor.spin(forward, axis3Val, percent); //spin drivetrain
+    right_motor.spin(forward, axis2Val, percent);
+    left_small_motor.spin(forward, axis3Val * 2, percent); //it will slide at >= 50% but oh the hell well
+    right_small_motor.spin(forward, axis2Val * 2, percent);
+
+
     int back_forward = back_arm_dampening * 100 * Controller1.ButtonR1.pressing(); //R1 -> back arm forward
     int back_reverse = back_arm_dampening * 100 * Controller1.ButtonR2.pressing(); //R2 -> back arm reverse
 
     int front_forward = front_arm_dampening * 100 * Controller1.ButtonL1.pressing(); //L1 -> front arm forward
     int front_reverse = front_arm_dampening * 100 * Controller1.ButtonL2.pressing(); //L2 -> front arm reverse
 
-    back_arm_motors.spin(forward,  back_forward - back_reverse, percent); //spin back arm
-    front_arm_motors.spin(forward,  front_forward - front_reverse, percent); //spin front arm
 
-    displayInfoBrain(back_arm_motors.position(degrees), 6, 3, cyan, "BACK ARM POS");
-    wait(20, msec);
+    //if within limits, spin the arms
+    if (std::abs(back_arm_motors.position(degrees)) <= back_arm_limit) {
+      back_arm_motors.spin(forward,  back_forward - back_reverse, percent); //spin back arm
+    }
+
+    if (std::abs(front_arm_motors.position(degrees)) <= front_arm_limit) {
+      front_arm_motors.spin(forward,  front_forward - front_reverse, percent); //spin front arm
+    }
+
+    
+
+    // displayInfoBrain(back_arm_motors.position(degrees), 6, 3, cyan, "BACK ARM POS");
+    // displayInfoController(front_arm_motors.torque(InLb), 2, 3, "F arm torque");
+
+    wait(20, msec); // Sleep the task for a short amount of time to
+                    // prevent wasted resources.
   }
 
 }

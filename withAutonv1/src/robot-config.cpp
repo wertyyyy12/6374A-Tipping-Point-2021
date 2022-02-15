@@ -17,6 +17,8 @@ motor right_motor = motor(PORT2, ratio18_1, true);
 motor back_arm_motorsMotorA = motor(PORT5, ratio18_1, false);
 motor back_arm_motorsMotorB = motor(PORT6, ratio18_1, true);
 motor_group back_arm_motors = motor_group(back_arm_motorsMotorA, back_arm_motorsMotorB);
+motor left_small_motor = motor(PORT7, ratio18_1, false);
+motor right_small_motor = motor(PORT10, ratio18_1, true);
 
 // VEXcode generated functions
 // define variable for remote controller enable/disable
